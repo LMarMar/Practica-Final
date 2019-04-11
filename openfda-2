@@ -1,0 +1,37 @@
+import http.client
+import json
+
+headers = {'User-Agent': 'http-client'}
+
+#Conectamos con el servidor
+conn = http.client.HTTPSConnection("api.fda.gov")
+
+#Enviar mensaje de solicitud.
+conn.request("GET", "/drug/label.json/?search=active_ingredient:acetylsalicylic&limit=100",None, headers)
+
+#Obtener respuesta
+r1 = conn.getresponse()
+if r1.status ==404:
+    print('ERROR, Recurso no encontrado')
+    exit(1)
+print(r1.status, r1.reason)
+
+#Leer contenido del json
+drugs_json = r1.read().decode("utf-8")
+conn.close()
+
+#META tiene la informacion de búsqueda
+
+
+#RESULTS tiene los resultados de la búsqueda
+aspirinas = json.loads(drugs_json)['results']
+for aspirina in aspirinas:
+
+    drug_id = aspirina['id']
+    print('id del medicamento: ', drug_id)
+
+    if aspirina['openfda']:
+        fabricante = aspirina['openfda']['manufacturer_name'][0]
+        print('fabricante: ',  fabricante)
+    else:
+        print('No hay información del fabricante')
