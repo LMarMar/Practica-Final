@@ -2,7 +2,7 @@ import http.server
 import socketserver
 import http.client
 import json
-
+socketserver.TCPServer.allow_reuse_address = True #Para no tener que cambiar el puerto
 # -- Puerto donde lanzar el servidor
 PORT = 8000 #8000
 headers = {'User-Agent': 'http-client'}
