@@ -2,7 +2,9 @@ import http.server
 import socketserver
 import http.client
 import json
-socketserver.TCPServer.allow_reuse_address = True #Para no tener que cambiar el puerto
+socketserver.TCPServer.allow_reuse_address = True
+#Para no tener que cambiar el puerto
+
 # -- Puerto donde lanzar el servidor
 PORT = 8000 #8000
 headers = {'User-Agent': 'http-client'}
@@ -28,6 +30,10 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         r1 = conn.getresponse()
         if r1.status ==404:
             print('ERROR, Recurso no encontrado')
+            with open('error.html','r') as f:
+                content = f.read()
+
+            self.wfile.write(bytes(content, "utf8"))
             exit(1)
         print(r1.status, r1.reason) #200 OK
 
@@ -41,7 +47,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         return data
 
 
-    def find_medicamento(self,search=None,limit=1):
+    def find_medicamento(self,search=None,limit=10):
         drug = self.do_openfda(search,limit)
 
         #Creamos el inicio del fichero html que enviaremos
@@ -75,18 +81,18 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 marca ='?'
                 fabricante ='?'
             drug_id = drug['id']
-            if drug['purpose']:
+            try:
                 drug_purpose = drug['purpose'][0]
-            else:
+            except KeyError:
                 drug_purpose='?'
 
             #Ampliamos el ficher html
             message += ('\n' 
-                       'NOMBRE:{}\n '
+                       '<li>NOMBRE:{}\n '
                        'MARCA:{}\n '
                        'FABRICANTE:{}\n '
                        'ID:{}\n '
-                       'PROPÓSITO:{}\n '
+                       'PROPÓSITO:{}</li>\n '
                        '---------------------------------'.format(nombre,marca,fabricante,drug_id,drug_purpose)
                         )
 
@@ -100,7 +106,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 
-    def find_empresa(self, search=None,limit=1):
+    def find_empresa(self, search=None,limit=10):
         empresa = self.do_openfda(search,limit)
 
         #Creamos el inicio del fichero html que enviaremos
@@ -135,7 +141,7 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
             #Ampliamos el ficher html
             message += ('\n' 
-                       'EMPRESA FABRICANTE:{}\n '
+                       '<li>EMPRESA FABRICANTE:{}</li>\n '
                        
                        '---------------------------------'.format(empresa)
                         )
@@ -166,9 +172,9 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             #Como solo enviamos un dato en cada path1 no necesitamos dividirlo por el &
             dato = path2.split('=') # Tenemos una lista con el nombre el dato y su valor
 
-            if dato[0]=='medicamento':
+            if dato[0]=='active_ingredient':
                 medicamento = dato[1]
-            elif dato[0] == 'empresa':
+            elif dato[0] == 'company':
                 empresa = dato[1]
             elif dato[0] == "limit":
                 limit = int(dato[1])
@@ -181,20 +187,32 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             message = "Por favor rellena este formulario " + content
 #-----------------------------------------------------------------------------------------------------------------------
         #MEDICAMENTO
-        elif path1 =='/medicamento':
+        elif path1 =='/searchDrug':
             message = self.find_medicamento(search='active_ingredient:'+medicamento)
 
         #EMPRESA
-        elif path1 =='/empresa':
+        elif path1 =='/searchCompany':
             message = self.find_empresa(search='openfda.manufacturer_name:'+ empresa)
 
         #LISTA MEDICAMENTOS
-        elif path1 =='/listamedicamentos':
+        elif path1 =='/listDrugs':
             message = self.find_medicamento(limit=limit)
 
         #LISTA EMPRESAS
-        elif path1 =='/listaempresas':
+        elif path1 =='/listCompanies':
             message = self.find_empresa(limit=limit)
+        elif path1 =='/not_exists_resource':
+
+        #EXTENSIÓN II: Error 404
+            self.send_error(404)
+
+        #EXTENSIÓN IV: Redirección y autenticación
+        elif path1 =='/secret':
+            self.send_response(401)
+        elif path1 =='/redirect':
+            self.send_response(302)
+            self.send_header('Location','http://www.localhost:8000')
+            self.end_headers()
 #-----------------------------------------------------------------------------------------------------------------------
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
