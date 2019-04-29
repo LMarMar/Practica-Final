@@ -46,6 +46,56 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         return data
 
+    def listWarnings(self, search = None, limit=10):
+        drug = self.do_openfda(search, limit)
+
+        # Creamos el inicio del fichero html que enviaremos
+        message = ('<!DOCTYPE html>\n'
+                   '<html lang="en">\n'
+                   '<head>\n'
+                   '<meta charset="UTF-8">\n'
+                   '<title>Openfda</title>\n'
+                   '</head>\n'
+                   '<body>\n'
+                   '<ul>\n'
+                   )
+
+        # META tiene la informacion de búsqueda
+        meta = drug['meta']
+        total = meta['results']['total']  # Total de objetos
+        limit = meta['results']['limit']  # Total objetos recibidos
+
+        # Ampliamos el fichero html
+        message += 'Se han recibido {} / {} medicamentos'.format(limit, total)
+
+        # RESULTS tiene los resultados de la búsqueda
+        drugs = drug['results']
+        for drug in drugs:
+            if drug['openfda']:
+                nombre = drug['openfda']['substance_name'][0]
+            else:
+                nombre ='?'
+            try:
+                advertencia = drug['warnings'][0]
+            except KeyError:
+                advertencia ='?'
+
+            # Ampliamos el ficher html
+            message += ('\n'
+                        '<li>NOMBRE:{}\n '
+                        'ADVERTENCIA:{}</li>\n '
+                        '---------------------------------'.format(nombre, advertencia)
+                        )
+
+            # Finalizamos el html
+        message += ('</ul>\n'
+                    '</body>\n'
+                    '</html>')
+
+        return message
+
+
+
 
     def find_medicamento(self,search=None,limit=10):
         drug = self.do_openfda(search,limit)
@@ -213,6 +263,11 @@ class testHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(302)
             self.send_header('Location','http://www.localhost:8000')
             self.end_headers()
+
+        #LISTA DE ADVERTENCIAS
+        elif path1 =='/listWarnings':
+            message = self.listWarnings(limit=limit)
+        #elif path1 =='/not_exists_resource':
 #-----------------------------------------------------------------------------------------------------------------------
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
